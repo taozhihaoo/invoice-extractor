@@ -1,0 +1,13 @@
+{% extends "base.html" %}
+{% block content %}
+<h1>Upload documents</h1>
+<div class="card">
+  <form action="/upload" method="post" enctype="multipart/form-data">
+    <input type="file" name="files" accept=".pdf,application/pdf" multiple required>
+    <p class="muted">PDF only &middot; up to {{ max_upload_size_mb }} MB per file &middot;
+       up to {{ max_batch_files }} files per batch &middot;
+       duplicate files are detected automatically (SHA-256)</p>
+    <button type="submit">Process files</button>
+  </form>
+</div>
+{% endblock %}

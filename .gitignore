@@ -1,0 +1,25 @@
+# Environments & secrets
+.env
+.env.*
+!.env.example
+.venv/
+venv/
+
+# Runtime data (uploaded documents, SQLite DB, generated samples, exports)
+data/
+uploads/
+output/
+*.db
+*.sqlite3
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+build/
+dist/
+.pytest_cache/
+.pytest_tmp/
+.ruff_cache/
+.coverage
+htmlcov/

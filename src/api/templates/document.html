@@ -1,0 +1,68 @@
+{% extends "base.html" %}
+{% block title %}{{ document.original_filename }} · AI Document Processor{% endblock %}
+{% block content %}
+<p class="muted"><a href="/">&larr; Dashboard</a></p>
+<h1 class="mono">{{ document.original_filename }}</h1>
+
+{% if document.status.value == "failed" %}
+  <div class="banner fail">Processing failed &mdash; {{ document.error_message or "unknown error" }}</div>
+{% elif document.status.value == "needs_review" %}
+  <div class="banner review">Needs manual review</div>
+  {% for reason in document.review_reasons %}
+    <div class="warning">{{ reason }}</div>
+  {% endfor %}
+{% else %}
+  <div class="banner ok">Processed</div>
+{% endif %}
+
+{% if document.extraction %}
+<div class="card">
+  <h2>Extracted invoice fields</h2>
+  <dl>
+    <dt>Supplier</dt><dd>{{ document.extraction.invoice.supplier or "&mdash;" }}</dd>
+    <dt>Invoice number</dt><dd>{{ document.extraction.invoice.invoice_number or "&mdash;" }}</dd>
+    <dt>Invoice date</dt><dd>{{ document.extraction.invoice.invoice_date or "&mdash;" }}</dd>
+    <dt>Due date</dt><dd>{{ document.extraction.invoice.due_date or "&mdash;" }}</dd>
+    <dt>Subtotal</dt><dd>{{ document.extraction.invoice.subtotal|money }}</dd>
+    <dt>Tax</dt><dd>{{ document.extraction.invoice.tax|money }}</dd>
+    <dt>Total</dt><dd><strong>{{ document.extraction.invoice.total|money }}</strong>
+        {{ document.extraction.invoice.currency or "" }}</dd>
+  </dl>
+  {% if document.extraction.validation.warnings %}
+    <h2 style="margin-top:16px">Validation warnings</h2>
+    {% for w in document.extraction.validation.warnings %}
+      <div class="warning">{{ w }}</div>
+    {% endfor %}
+  {% else %}
+    <p class="muted" style="margin-top:12px">Deterministic validation passed.</p>
+  {% endif %}
+  <p class="muted" style="margin-top:12px">LLM provider: {{ document.extraction.llm_provider }}
+     &middot; model: {{ document.extraction.llm_model or "n/a" }} &middot;
+     tokens: {{ document.extraction.usage.prompt_tokens }} prompt +
+     {{ document.extraction.usage.completion_tokens }} completion</p>
+</div>
+{% endif %}
+
+<div class="card">
+  <h2>Document</h2>
+  <dl>
+    <dt>Status</dt><dd><span class="badge {{ document.status.value }}">{{ document.status.value }}</span>
+      {% if document.duplicate %}<span class="badge neutral">duplicate of {{ document.duplicate_of[:12] }}&hellip;</span>{% endif %}</dd>
+    <dt>Document type</dt>
+    <dd>{{ document.document_type.value if document.document_type else "&mdash;" }}
+      {% if document.classification %}<span class="muted">({{ document.classification.method }},
+        confidence {{ document.classification.confidence }})</span>{% endif %}</dd>
+    <dt>Pages</dt><dd>{{ document.page_count if document.page_count is not none else "&mdash;" }}</dd>
+    <dt>Extraction method</dt><dd>{{ document.extraction_method.value if document.extraction_method else "&mdash;" }}</dd>
+    <dt>Text length</dt><dd>{{ document.text_length if document.text_length is not none else "&mdash;" }}</dd>
+    <dt>File size</dt><dd>{{ document.file_size }} bytes</dd>
+    <dt>SHA-256</dt><dd class="mono">{{ document.sha256[:24] }}&hellip;</dd>
+    <dt>Uploaded</dt><dd>{{ document.created_at or "&mdash;" }} UTC</dd>
+  </dl>
+  {% if document.status.value != "failed" %}
+  <p style="margin-top:12px">
+    <a href="/documents/{{ document.document_id }}/download">Download original PDF</a>
+  </p>
+  {% endif %}
+</div>
+{% endblock %}

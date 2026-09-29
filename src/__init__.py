@@ -1,0 +1,4 @@
+"""AI Document Processor: PDF ingestion, text extraction, classification,
+LLM structured invoice extraction, deterministic validation and export."""
+
+__version__ = "0.1.0"

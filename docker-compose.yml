@@ -1,0 +1,17 @@
+services:
+  document-processor:
+    build: .
+    image: ai-document-processor:latest
+    ports:
+      - "8000:8000"
+    environment:
+      # Secrets come from the environment (or an .env file that is NOT baked
+      # into the image). Leave LLM_PROVIDER=mock for a fully offline setup.
+      LLM_PROVIDER: ${LLM_PROVIDER:-mock}
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      OPENAI_MODEL: ${OPENAI_MODEL:-gpt-4o-mini}
+    volumes:
+      # SQLite database + uploaded files persist here.
+      - ./data:/app/data
+      - ./output:/app/output
+    restart: unless-stopped

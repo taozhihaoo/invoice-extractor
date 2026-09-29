@@ -1,0 +1,39 @@
+{% extends "base.html" %}
+{% block content %}
+<p class="muted"><a href="/">&larr; Dashboard</a></p>
+<h1>Batch <span class="mono">{{ run_id[:12] }}&hellip;</span></h1>
+
+<div class="card">
+  <dl>
+    <dt>Started (UTC)</dt><dd>{{ started_at }}</dd>
+    <dt>Finished (UTC)</dt><dd>{{ finished_at or "&mdash;" }}</dd>
+    <dt>Files</dt><dd>{{ total }} ({{ succeeded }} succeeded &middot;
+        {{ failed }} failed &middot; {{ needs_review }} need review)</dd>
+  </dl>
+  <p style="margin-top:12px">
+    <a href="/export/csv?run_id={{ run_id }}">CSV for this run</a> &middot;
+    <a href="/export/json?run_id={{ run_id }}">JSON for this run</a>
+  </p>
+</div>
+
+<div class="card">
+  <table>
+    <tr><th>File</th><th>Status</th><th>Type</th><th>Total</th><th>Detail</th></tr>
+    {% for d in documents %}
+    <tr>
+      <td><a href="/documents/{{ d.document_id }}/view" class="mono">{{ d.original_filename }}</a>
+        {% if d.duplicate %}<span class="badge neutral">duplicate</span>{% endif %}</td>
+      <td><span class="badge {{ d.status.value }}">{{ d.status.value }}</span></td>
+      <td>{{ d.document_type.value if d.document_type else "&mdash;" }}</td>
+      <td>{% if d.extraction and d.extraction.invoice.total is not none %}
+            {{ d.extraction.invoice.total|money }}
+          {% else %}&mdash;{% endif %}</td>
+      <td class="muted">
+        {% if d.error_message %}{{ d.error_message[:80] }}
+        {% elif d.review_reasons %}{{ d.review_reasons[0][:80] }}
+        {% endif %}</td>
+    </tr>
+    {% endfor %}
+  </table>
+</div>
+{% endblock %}

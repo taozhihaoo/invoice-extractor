@@ -1,0 +1,7 @@
+{% extends "base.html" %}
+{% block content %}
+<h1>Request rejected</h1>
+<div class="banner fail">{{ message or "Request could not be processed." }}</div>
+<p class="muted">error code: {{ code }}</p>
+<p><a href="/upload">Back to upload</a></p>
+{% endblock %}
