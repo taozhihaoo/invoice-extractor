@@ -69,7 +69,8 @@ CREATE TABLE IF NOT EXISTS processing_runs (
     total        INTEGER NOT NULL DEFAULT 0,
     success      INTEGER NOT NULL DEFAULT 0,
     failed       INTEGER NOT NULL DEFAULT 0,
-    needs_review INTEGER NOT NULL DEFAULT 0
+    needs_review INTEGER NOT NULL DEFAULT 0,
+    uploads_json TEXT
 );
 """
 
@@ -120,6 +121,10 @@ class Database:
         self.path.parent.mkdir(parents=True, exist_ok=True)
         with self._conn() as conn:
             conn.executescript(SCHEMA)
+            # Databases created before uploads_json existed keep working.
+            columns = {row[1] for row in conn.execute("PRAGMA table_info(processing_runs)")}
+            if "uploads_json" not in columns:
+                conn.execute("ALTER TABLE processing_runs ADD COLUMN uploads_json TEXT")
 
     @contextmanager
     def _conn(self) -> Iterator[sqlite3.Connection]:
@@ -228,13 +233,16 @@ class Database:
         failed: int,
         needs_review: int,
         finished_at: str,
+        uploads: list[dict[str, Any]] | None = None,
     ) -> None:
+        uploads_json = json.dumps(uploads) if uploads is not None else None
         with self._conn() as conn:
             conn.execute(
                 """UPDATE processing_runs
-                   SET total = ?, success = ?, failed = ?, needs_review = ?, finished_at = ?
+                   SET total = ?, success = ?, failed = ?, needs_review = ?, finished_at = ?,
+                       uploads_json = ?
                    WHERE run_id = ?""",
-                (total, success, failed, needs_review, finished_at, run_id),
+                (total, success, failed, needs_review, finished_at, uploads_json, run_id),
             )
 
     def get_run(self, run_id: str) -> dict[str, Any] | None:

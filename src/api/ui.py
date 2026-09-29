@@ -7,6 +7,7 @@ just make it usable for non-technical users.
 
 from __future__ import annotations
 
+import json
 from pathlib import Path
 
 from fastapi import APIRouter, File, HTTPException, Request, UploadFile
@@ -15,6 +16,7 @@ from fastapi.templating import Jinja2Templates
 from starlette.concurrency import run_in_threadpool
 
 from ..errors import UploadError
+from ..models import DocumentResult, DocumentStatus
 from ..processing import UploadInput
 from ..processing.service import document_result_from_rows
 
@@ -112,10 +114,56 @@ def run_page(request: Request, run_id: str):
     if run is None:
         raise HTTPException(status_code=404, detail="run not found")
     rows = comps.db.list_run_documents(run_id)
-    documents = [
-        document_result_from_rows(row, comps.db.get_extraction(row["id"]))
+    by_id = {
+        row["id"]: document_result_from_rows(row, comps.db.get_extraction(row["id"]))
         for row in rows
-    ]
+    }
+    documents: list[DocumentResult] = list(by_id.values())
+
+    # Duplicates have no document row of their own (by design). The batch
+    # manifest recorded on the run lets the table show every upload anyway.
+    for entry in json.loads(run.get("uploads_json") or "[]"):
+        listed = by_id.get(entry["document_id"])
+        if listed is not None and not entry.get("duplicate"):
+            continue  # this upload produced its own document row, already listed
+        if listed is not None:
+            # Duplicate of a document created earlier in this same batch.
+            documents.append(
+                listed.model_copy(
+                    update={
+                        "duplicate": True,
+                        "original_filename": entry.get("original_filename")
+                        or listed.original_filename,
+                    }
+                )
+            )
+            continue
+        original = comps.db.get_document(entry["document_id"])
+        if original is not None:
+            result = document_result_from_rows(
+                original,
+                comps.db.get_extraction(entry["document_id"]),
+                duplicate=True,
+            )
+            # Show the name this run uploaded, not the original document's name.
+            result.original_filename = (
+                entry.get("original_filename") or result.original_filename
+            )
+            documents.append(result)
+        else:
+            documents.append(
+                DocumentResult(
+                    document_id=entry["document_id"],
+                    original_filename=entry.get("original_filename") or "upload.pdf",
+                    status=DocumentStatus.FAILED,
+                    file_size=0,
+                    sha256="",
+                    duplicate=True,
+                    run_id=run_id,
+                    error_message="original document record is no longer available",
+                )
+            )
+
     return templates.TemplateResponse(
         request,
         "run.html",

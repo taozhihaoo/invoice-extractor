@@ -19,10 +19,10 @@
 <div class="card">
   <h2>Extracted invoice fields</h2>
   <dl>
-    <dt>Supplier</dt><dd>{{ document.extraction.invoice.supplier or "&mdash;" }}</dd>
-    <dt>Invoice number</dt><dd>{{ document.extraction.invoice.invoice_number or "&mdash;" }}</dd>
-    <dt>Invoice date</dt><dd>{{ document.extraction.invoice.invoice_date or "&mdash;" }}</dd>
-    <dt>Due date</dt><dd>{{ document.extraction.invoice.due_date or "&mdash;" }}</dd>
+    <dt>Supplier</dt><dd>{{ document.extraction.invoice.supplier or "—" }}</dd>
+    <dt>Invoice number</dt><dd>{{ document.extraction.invoice.invoice_number or "—" }}</dd>
+    <dt>Invoice date</dt><dd>{{ document.extraction.invoice.invoice_date or "—" }}</dd>
+    <dt>Due date</dt><dd>{{ document.extraction.invoice.due_date or "—" }}</dd>
     <dt>Subtotal</dt><dd>{{ document.extraction.invoice.subtotal|money }}</dd>
     <dt>Tax</dt><dd>{{ document.extraction.invoice.tax|money }}</dd>
     <dt>Total</dt><dd><strong>{{ document.extraction.invoice.total|money }}</strong>
@@ -49,15 +49,15 @@
     <dt>Status</dt><dd><span class="badge {{ document.status.value }}">{{ document.status.value }}</span>
       {% if document.duplicate %}<span class="badge neutral">duplicate of {{ document.duplicate_of[:12] }}&hellip;</span>{% endif %}</dd>
     <dt>Document type</dt>
-    <dd>{{ document.document_type.value if document.document_type else "&mdash;" }}
+    <dd>{{ document.document_type.value if document.document_type else "—" }}
       {% if document.classification %}<span class="muted">({{ document.classification.method }},
         confidence {{ document.classification.confidence }})</span>{% endif %}</dd>
-    <dt>Pages</dt><dd>{{ document.page_count if document.page_count is not none else "&mdash;" }}</dd>
-    <dt>Extraction method</dt><dd>{{ document.extraction_method.value if document.extraction_method else "&mdash;" }}</dd>
-    <dt>Text length</dt><dd>{{ document.text_length if document.text_length is not none else "&mdash;" }}</dd>
+    <dt>Pages</dt><dd>{{ document.page_count if document.page_count is not none else "—" }}</dd>
+    <dt>Extraction method</dt><dd>{{ document.extraction_method.value if document.extraction_method else "—" }}</dd>
+    <dt>Text length</dt><dd>{{ document.text_length if document.text_length is not none else "—" }}</dd>
     <dt>File size</dt><dd>{{ document.file_size }} bytes</dd>
     <dt>SHA-256</dt><dd class="mono">{{ document.sha256[:24] }}&hellip;</dd>
-    <dt>Uploaded</dt><dd>{{ document.created_at or "&mdash;" }} UTC</dd>
+    <dt>Uploaded</dt><dd>{{ document.created_at or "—" }} UTC</dd>
   </dl>
   {% if document.status.value != "failed" %}
   <p style="margin-top:12px">

@@ -87,6 +87,16 @@ class BatchProcessor:
         failed = sum(1 for r in results if r.status is DocumentStatus.FAILED)
         needs_review = sum(1 for r in results if r.status is DocumentStatus.NEEDS_REVIEW)
         succeeded = len(results) - failed - needs_review
+        # Record what was uploaded onto the run (including duplicates, which by
+        # design have no document row) so run reports can show every file.
+        manifest = [
+            {
+                "original_filename": sanitise_filename(upload.filename),
+                "document_id": result.document_id,
+                "duplicate": result.duplicate,
+            }
+            for result, upload in zip(results, uploads, strict=True)
+        ]
         self._db.finish_run(
             run_id,
             total=len(results),
@@ -94,6 +104,7 @@ class BatchProcessor:
             failed=failed,
             needs_review=needs_review,
             finished_at=utc_now(),
+            uploads=manifest,
         )
         return results
 

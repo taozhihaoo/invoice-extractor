@@ -23,7 +23,7 @@
     {% for d in documents %}
     <tr>
       <td><a href="/documents/{{ d.document_id }}/view" class="mono">{{ d.original_filename }}</a></td>
-      <td>{{ d.document_type.value if d.document_type else "&mdash;" }}</td>
+      <td>{{ d.document_type.value if d.document_type else "—" }}</td>
       <td>{% if d.extraction and d.extraction.invoice.total is not none %}
             {{ d.extraction.invoice.total|money }} {{ d.extraction.invoice.currency or "" }}
           {% else %}&mdash;{% endif %}</td>

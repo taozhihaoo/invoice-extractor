@@ -50,7 +50,31 @@ each file individually tracked as `processed`, `needs_review` or `failed`.
 - **REST API + minimal HTML UI** — upload, batch, status, results, download, export
 - **CSV / JSON export** — flat `invoice_report.csv` and full-structure JSON
 - **Demo mode** — end-to-end offline run on synthetic sample documents
-- **Tests & CI** — 169 offline tests; GitHub Actions on Python 3.11 and 3.13
+- **Tests & CI** — 173 offline tests; GitHub Actions on Python 3.11 and 3.13
+
+## Quickstart
+
+Requires Python 3.11+. `OPENAI_API_KEY` is optional — without it, everything
+runs offline in mock mode.
+
+```bash
+# 1. create and activate a virtual environment
+python -m venv .venv
+source .venv/bin/activate            # Windows: .venv\Scripts\activate
+
+# 2. install dependencies (runtime + test tooling)
+pip install -r requirements-dev.txt
+
+# 3. verify: offline tests and lint
+pytest
+ruff check .
+
+# 4. run the end-to-end demo (mock LLM, no API key, no network)
+python -m src.main --demo
+
+# 5. start the API + web UI on http://127.0.0.1:8000
+python -m src.main --serve
+```
 
 ## Architecture
 
@@ -157,6 +181,11 @@ Errors always use `{"error": {"code": ..., "message": ...}}` — 4xx for rejecte
 uploads, sanitised 500 for unexpected failures. Stack traces, internal paths and
 provider details are never returned.
 
+Amount fields in API JSON responses are serialised as **strings** (e.g.
+`"total": "999.00"`): extracted amounts are `Decimal` values kept at full
+precision instead of being rounded through floats. The JSON export
+(`/export/json`) writes amounts as JSON numbers — see `src/exporters.py`.
+
 ## Web UI
 
 Plain server-rendered pages (FastAPI + Jinja2, no JS framework):
@@ -249,7 +278,7 @@ filename never becomes a filesystem path.
 
 ## Testing
 
-169 offline tests (plus 1 optional OCR integration test that auto-skips
+173 offline tests (plus 1 optional OCR integration test that auto-skips
 without Tesseract):
 
 - unit: upload validation, filename sanitisation, file store, extraction
