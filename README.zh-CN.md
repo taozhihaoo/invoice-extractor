@@ -1,4 +1,4 @@
-# AI 文档处理器（AI Document Processor）
+# 发票提取器（Invoice Extractor）
 
 **上传发票 PDF，得到可以信任的结构化数据——或者一条明确的“待人工复核”标记。**
 
@@ -7,7 +7,7 @@
 
 [English](README.md) | 简体中文
 
-[![CI](https://github.com/taozhihaoo/ai-document-processor/actions/workflows/ci.yml/badge.svg)](https://github.com/taozhihaoo/ai-document-processor/actions/workflows/ci.yml)
+[![CI](https://github.com/taozhihaoo/invoice-extractor/actions/workflows/ci.yml/badge.svg)](https://github.com/taozhihaoo/invoice-extractor/actions/workflows/ci.yml)
 ![Python](https://img.shields.io/badge/python-3.11%20%7C%203.13-3776AB)
 ![License](https://img.shields.io/badge/license-MIT-green)
 
@@ -158,7 +158,7 @@ python -m src.main --process FILE  # 处理单个 PDF
 python -m src.main --gen-samples D # 将合成样例 PDF 写入目录 D
 ```
 
-执行 `pip install -e .` 后，同一套命令也可以通过 `document-processor` 调用。
+执行 `pip install -e .` 后，同一套命令也可以通过 `invoice-extractor` 调用。
 
 ## 配置项
 

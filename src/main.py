@@ -19,8 +19,8 @@ from .errors import ConfigurationError
 
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
-        prog="document-processor",
-        description="AI Document Processor - PDF ingestion, text extraction, "
+        prog="invoice-extractor",
+        description="Invoice Extractor - PDF ingestion, text extraction, "
         "classification, LLM structured invoice extraction, validation and export.",
     )
     parser.add_argument("--version", action="version", version=__version__)

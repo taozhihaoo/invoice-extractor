@@ -53,10 +53,10 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     components = build(settings)
 
     app = FastAPI(
-        title="AI Document Processor",
+        title="Invoice Extractor",
         version=__version__,
         description=(
-            "Upload PDFs, extract text (native + optional OCR), classify documents, "
+            "Upload invoice PDFs, extract text (native + optional OCR), classify documents, "
             "extract invoice fields via LLM structured outputs, validate deterministically, "
             "persist to SQLite and export CSV/JSON."
         ),

@@ -21,8 +21,8 @@ COOKIE_MAX_AGE = 60 * 60 * 24 * 365
 # key -> {"en": ..., "zh": ...}
 STRINGS: dict[str, dict[str, str]] = {
     # shell ---------------------------------------------------------------
-    "brand": {"en": "AI Document Processor", "zh": "AI 文档处理器"},
-    "brand.tag": {"en": "Invoice intake", "zh": "发票处理"},
+    "brand": {"en": "Invoice Extractor", "zh": "发票提取器"},
+    "brand.tag": {"en": "PDF → structured data", "zh": "PDF → 结构化数据"},
     "nav.dashboard": {"en": "Dashboard", "zh": "总览"},
     "nav.upload": {"en": "Upload", "zh": "上传"},
     "nav.api": {"en": "API", "zh": "API"},

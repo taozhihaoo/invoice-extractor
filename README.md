@@ -1,4 +1,4 @@
-# AI Document Processor
+# Invoice Extractor
 
 **Upload invoice PDFs, get structured data you can actually trust — or an explicit "needs review".**
 
@@ -8,7 +8,7 @@ offline out of the box, every automated test included.
 
 English | [简体中文](README.zh-CN.md)
 
-[![CI](https://github.com/taozhihaoo/ai-document-processor/actions/workflows/ci.yml/badge.svg)](https://github.com/taozhihaoo/ai-document-processor/actions/workflows/ci.yml)
+[![CI](https://github.com/taozhihaoo/invoice-extractor/actions/workflows/ci.yml/badge.svg)](https://github.com/taozhihaoo/invoice-extractor/actions/workflows/ci.yml)
 ![Python](https://img.shields.io/badge/python-3.11%20%7C%203.13-3776AB)
 ![License](https://img.shields.io/badge/license-MIT-green)
 
@@ -166,7 +166,7 @@ python -m src.main --process FILE  # process a single PDF
 python -m src.main --gen-samples D # write synthetic sample PDFs to D
 ```
 
-After `pip install -e .` the same CLI is available as `document-processor`.
+After `pip install -e .` the same CLI is available as `invoice-extractor`.
 
 ## Configuration
 

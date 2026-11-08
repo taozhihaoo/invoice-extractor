@@ -1,7 +1,7 @@
 services:
-  document-processor:
+  invoice-extractor:
     build: .
-    image: ai-document-processor:latest
+    image: invoice-extractor:latest
     ports:
       - "8000:8000"
     environment:

@@ -6,7 +6,7 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
     PIP_NO_CACHE_DIR=1 \
     PIP_DISABLE_PIP_VERSION_CHECK=1
 
-LABEL org.opencontainers.image.title="AI Document Processor" \
+LABEL org.opencontainers.image.title="Invoice Extractor" \
       org.opencontainers.image.description="PDF ingestion, LLM structured invoice extraction, deterministic validation and CSV/JSON export" \
       org.opencontainers.image.licenses="MIT"
 

@@ -68,7 +68,7 @@ jobs:
         run: pip install -e .
 
       - name: Console script is on PATH
-        run: document-processor --version
+        run: invoice-extractor --version
 
       - name: End-to-end demo (no API key, no network)
         env:
@@ -89,10 +89,10 @@ jobs:
       - uses: actions/checkout@v4
 
       - name: Build image
-        run: docker build -t ai-document-processor:ci .
+        run: docker build -t invoice-extractor:ci .
 
       - name: Run container
-        run: docker run -d --name app -p 8000:8000 -e LLM_PROVIDER=mock ai-document-processor:ci
+        run: docker run -d --name app -p 8000:8000 -e LLM_PROVIDER=mock invoice-extractor:ci
 
       - name: Wait for /health and smoke-test the UI
         run: |
@@ -104,7 +104,7 @@ jobs:
           done
           cat /tmp/health.json
           grep -q '"status":"ok"' /tmp/health.json
-          curl -fsS http://127.0.0.1:8000/ | grep -q "AI Document Processor"
+          curl -fsS http://127.0.0.1:8000/ | grep -q "Invoice Extractor"
           curl -fsS http://127.0.0.1:8000/static/app.css | grep -q -- "--accent"
           curl -fsS http://127.0.0.1:8000/export/csv | head -n 1
 

@@ -49,7 +49,7 @@ def run_demo(settings: Settings) -> int:
         encoding="utf-8",
     )
 
-    print("AI Document Processor - demo mode (LLM provider: mock, no external calls)")
+    print("Invoice Extractor - demo mode (LLM provider: mock, no external calls)")
     _print_batch_summary(settings, result)
     return 0
 
