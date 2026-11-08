@@ -8,6 +8,7 @@ actually happened; nothing is claimed to be verified that was not.
 from __future__ import annotations
 
 import json
+import logging
 import uuid
 from decimal import Decimal
 from typing import TYPE_CHECKING, Any
@@ -36,6 +37,8 @@ from ..validation_rules import build_review_reasons, validate_invoice
 if TYPE_CHECKING:
     from ..config import Settings
     from ..llm.base import LLMClient
+
+logger = logging.getLogger("document_processor")
 
 
 def _decimal_or_none(value: Any) -> Decimal | None:
@@ -198,6 +201,16 @@ class DocumentProcessor:
             return self._fail(document_id, exc.code, exc.message)
         except LLMError as exc:
             return self._fail(document_id, exc.code, f"LLM extraction failed ({exc.code})")
+        except Exception:
+            # A single unreadable document must not abort the rest of a batch.
+            # The traceback is logged locally; the client only sees a generic
+            # message (no paths, no internals).
+            logger.exception("unexpected failure while processing document %s", document_id)
+            return self._fail(
+                document_id,
+                "processing_error",
+                "unexpected error while processing this file",
+            )
 
     # internals ------------------------------------------------------------
 

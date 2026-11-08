@@ -1,7 +1,14 @@
-FROM python:3.12-slim
+# Pinned dependency set is verified on Python 3.13 (see CI matrix).
+FROM python:3.13-slim
 
 ENV PYTHONDONTWRITEBYTECODE=1 \
-    PYTHONUNBUFFERED=1
+    PYTHONUNBUFFERED=1 \
+    PIP_NO_CACHE_DIR=1 \
+    PIP_DISABLE_PIP_VERSION_CHECK=1
+
+LABEL org.opencontainers.image.title="AI Document Processor" \
+      org.opencontainers.image.description="PDF ingestion, LLM structured invoice extraction, deterministic validation and CSV/JSON export" \
+      org.opencontainers.image.licenses="MIT"
 
 WORKDIR /app
 

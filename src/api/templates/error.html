@@ -1,7 +1,27 @@
 {% extends "base.html" %}
+{% block title %}{{ t("error.title") }} · {{ t("brand") }}{% endblock %}
 {% block content %}
-<h1>Request rejected</h1>
-<div class="banner fail">{{ message or "Request could not be processed." }}</div>
-<p class="muted">error code: {{ code }}</p>
-<p><a href="/upload">Back to upload</a></p>
+<div class="page-head">
+  <div>
+    <h1>{{ t("error.title") }}</h1>
+    <p class="subtitle">{{ t("error.subtitle") }}</p>
+  </div>
+  <div class="actions">
+    <a class="btn btn-ghost btn-sm" href="/">{{ t("common.back") }}</a>
+    <a class="btn btn-primary btn-sm" href="/upload">{{ t("error.retry") }}</a>
+  </div>
+</div>
+
+<section class="card">
+  <div class="banner fail" style="margin-bottom:0">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+         stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+      <circle cx="12" cy="12" r="9"/><path d="M12 8v4.5M12 16v.1"/>
+    </svg>
+    <span class="banner-body">
+      {{ message or t("error.title") }}
+      <span class="banner-sub">{{ t("error.code") }}: <code class="mono">{{ code }}</code></span>
+    </span>
+  </div>
+</section>
 {% endblock %}

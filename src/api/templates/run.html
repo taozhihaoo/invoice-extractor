@@ -1,39 +1,116 @@
 {% extends "base.html" %}
+{% block title %}{{ t("run.title") }} · {{ t("brand") }}{% endblock %}
 {% block content %}
-<p class="muted"><a href="/">&larr; Dashboard</a></p>
-<h1>Batch <span class="mono">{{ run_id[:12] }}&hellip;</span></h1>
+<p class="crumbs"><a href="/">← {{ t("common.back") }}</a></p>
 
-<div class="card">
-  <dl>
-    <dt>Started (UTC)</dt><dd>{{ started_at }}</dd>
-    <dt>Finished (UTC)</dt><dd>{{ finished_at or "—" }}</dd>
-    <dt>Files</dt><dd>{{ total }} ({{ succeeded }} succeeded &middot;
-        {{ failed }} failed &middot; {{ needs_review }} need review)</dd>
-  </dl>
-  <p style="margin-top:12px">
-    <a href="/export/csv?run_id={{ run_id }}">CSV for this run</a> &middot;
-    <a href="/export/json?run_id={{ run_id }}">JSON for this run</a>
-  </p>
+<div class="page-head">
+  <div>
+    <h1>{{ t("run.title") }} <span class="mono muted" title="{{ run_id }}">{{ run_id[:12] }}…</span></h1>
+    <p class="subtitle">{{ t("run.subtitle") }}</p>
+    <p class="subtitle">
+      {{ t("run.started") }} <span class="mono">{{ started_at|stamp }}</span>
+      &nbsp;·&nbsp;
+      {{ t("run.finished") }} <span class="mono">{{ finished_at|stamp if finished_at else "—" }}</span>
+    </p>
+  </div>
+  <div class="actions">
+    <a class="btn btn-ghost btn-sm" href="/export/csv?run_id={{ run_id }}">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+           stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <path d="M12 4v11m0 0 4-4m-4 4-4-4M5 19h14"/>
+      </svg>
+      {{ t("run.export.csv") }}
+    </a>
+    <a class="btn btn-ghost btn-sm" href="/export/json?run_id={{ run_id }}">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+           stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <path d="M12 4v11m0 0 4-4m-4 4-4-4M5 19h14"/>
+      </svg>
+      {{ t("run.export.json") }}
+    </a>
+  </div>
 </div>
 
-<div class="card">
-  <table>
-    <tr><th>File</th><th>Status</th><th>Type</th><th>Total</th><th>Detail</th></tr>
-    {% for d in documents %}
-    <tr>
-      <td><a href="/documents/{{ d.document_id }}/view" class="mono">{{ d.original_filename }}</a>
-        {% if d.duplicate %}<span class="badge neutral">duplicate</span>{% endif %}</td>
-      <td><span class="badge {{ d.status.value }}">{{ d.status.value }}</span></td>
-      <td>{{ d.document_type.value if d.document_type else "—" }}</td>
-      <td>{% if d.extraction and d.extraction.invoice.total is not none %}
-            {{ d.extraction.invoice.total|money }}
-          {% else %}&mdash;{% endif %}</td>
-      <td class="muted">
-        {% if d.error_message %}{{ d.error_message[:80] }}
-        {% elif d.review_reasons %}{{ d.review_reasons[0][:80] }}
-        {% endif %}</td>
-    </tr>
-    {% endfor %}
-  </table>
-</div>
+<section class="stats compact">
+  <div class="stat-card">
+    <div class="stat-top"><span class="stat-label">{{ t("run.stat.total") }}</span></div>
+    <div class="stat-value">{{ total }}</div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-top"><span class="stat-label">{{ t("run.stat.succeeded") }}</span></div>
+    <div class="stat-value">{{ succeeded }}</div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-top"><span class="stat-label">{{ t("run.stat.review") }}</span></div>
+    <div class="stat-value">{{ needs_review }}</div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-top"><span class="stat-label">{{ t("run.stat.failed") }}</span></div>
+    <div class="stat-value">{{ failed }}</div>
+  </div>
+</section>
+
+<section class="card">
+  <div class="card-head">
+    <h2>{{ t("table.file") }}</h2>
+    <span class="hint">{{ total }} {{ t("common.files") }}</span>
+  </div>
+
+  {% if documents %}
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th>{{ t("table.file") }}</th>
+          <th>{{ t("table.status") }}</th>
+          <th>{{ t("table.type") }}</th>
+          <th class="num">{{ t("table.amount") }}</th>
+          <th>{{ t("table.detail") }}</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for d in documents %}
+        <tr>
+          <td>
+            <div class="file-cell">
+              <span class="file-icon" aria-hidden="true">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"
+                     stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/>
+                  <path d="M14 3v5h5"/>
+                </svg>
+              </span>
+              <div>
+                <a class="file-name" href="/documents/{{ d.document_id }}/view"
+                   title="{{ d.original_filename }}">{{ d.original_filename }}</a>
+                {% if d.duplicate %}<div class="row-meta">{{ t("status.duplicate") }}</div>{% endif %}
+              </div>
+            </div>
+          </td>
+          <td><span class="pill {{ d.status.value }}">{{ t("status." ~ d.status.value) }}</span></td>
+          <td class="type-tag">{% if d.document_type %}{{ t("type." ~ d.document_type.value) }}{% else %}—{% endif %}</td>
+          <td class="num">{% if d.extraction and d.extraction.invoice.total is not none %}{{ d.extraction.invoice.total|money }}{% if d.extraction.invoice.currency %} <span class="muted">{{ d.extraction.invoice.currency }}</span>{% endif %}{% else %}—{% endif %}</td>
+          <td class="muted detail-cell"
+              title="{% if d.error_message %}{{ d.error_message }}{% elif d.review_reasons %}{{ d.review_reasons[0] }}{% endif %}">
+            {% if d.error_message %}{{ d.error_message }}
+            {% elif d.review_reasons %}{{ d.review_reasons[0] }}
+            {% else %}—{% endif %}
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}
+  <div class="empty">
+    <span class="empty-icon" aria-hidden="true">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"
+           stroke-linecap="round" stroke-linejoin="round">
+        <path d="M4 7h16M4 12h16M4 17h10"/>
+      </svg>
+    </span>
+    <strong>{{ t("run.empty") }}</strong>
+  </div>
+  {% endif %}
+</section>
 {% endblock %}

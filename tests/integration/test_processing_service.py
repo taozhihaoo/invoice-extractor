@@ -205,6 +205,69 @@ class TestBatch:
                 [upload_input(CORRUPTED_PDF_BYTES, "x.pdf")] * 3
             )
 
+    def test_unexpected_crash_is_isolated_to_one_file(self, components, monkeypatch):
+        """An unforeseen exception on one file must not abort the batch."""
+        original = components.processor._process
+        state = {"calls": 0}
+
+        def flaky(*args, **kwargs):
+            state["calls"] += 1
+            if state["calls"] == 1:
+                raise RuntimeError("boom: internal detail that must not leak")
+            return original(*args, **kwargs)
+
+        monkeypatch.setattr(components.processor, "_process", flaky)
+        result = components.batch.process_files(
+            [
+                upload_input(make_pdf(SAMPLE_INVOICE_TEXT), "a.pdf"),
+                upload_input(make_pdf(SAMPLE_INVOICE_MISMATCH), "b.pdf"),
+            ]
+        )
+        assert result.total == 2
+        assert result.failed == 1
+        assert [r.status for r in result.results] == [
+            DocumentStatus.FAILED,
+            DocumentStatus.NEEDS_REVIEW,
+        ]
+        message = result.results[0].error_message
+        assert "processing_error" in message
+        assert "boom" not in message  # internals are logged, never returned
+        assert "internal detail" not in message
+
+
+class TestRetryAfterFailure:
+    def test_failed_file_can_be_processed_again(self, components):
+        """Dedup must not pin a user to a permanently failed upload."""
+        first = components.processor.process_upload(
+            filename="broken.pdf",
+            content_type="application/pdf",
+            data=CORRUPTED_PDF_BYTES,
+        )
+        assert first.status is DocumentStatus.FAILED
+        assert not first.duplicate
+
+        second = components.processor.process_upload(
+            filename="broken-again.pdf",
+            content_type="application/pdf",
+            data=CORRUPTED_PDF_BYTES,
+        )
+        assert not second.duplicate
+        assert second.document_id != first.document_id
+        assert second.status is DocumentStatus.FAILED
+        assert components.db.count_documents() == 2
+
+    def test_processed_file_is_still_deduplicated(self, components):
+        data = make_pdf(SAMPLE_INVOICE_TEXT)
+        first = components.processor.process_upload(
+            filename="ok.pdf", content_type="application/pdf", data=data
+        )
+        again = components.processor.process_upload(
+            filename="ok-copy.pdf", content_type="application/pdf", data=data
+        )
+        assert again.duplicate
+        assert again.document_id == first.document_id
+        assert components.db.count_documents() == 1
+
 
 class TestSingleFileRun:
     def test_process_one_creates_a_run(self, components):

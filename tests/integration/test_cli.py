@@ -102,9 +102,11 @@ class TestProcessCommand:
 
         assert main(["--process", str(inbox)]) == 0
         second_output = capsys.readouterr().out
-        # Every file from the first run - including the corrupt one - is now
-        # a duplicate, so no extraction work is repeated.
-        assert "duplicates 6" in second_output
+        # The five readable files are recognised as duplicates and not
+        # re-extracted; the corrupted one failed, so it is retried (and fails
+        # again) instead of being reported as a duplicate forever.
+        assert "duplicates 5" in second_output
+        assert "failed 1" in second_output
 
     def test_process_missing_path_fails_cleanly(self, tmp_path, capsys):
         exit_code = main(["--process", str(tmp_path / "nope")])

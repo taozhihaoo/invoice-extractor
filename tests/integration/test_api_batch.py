@@ -190,7 +190,7 @@ class TestRunPageDuplicateDisplay:
         assert "invoice.pdf" in page.text       # duplicate upload is listed
         assert "missing.pdf" in page.text
         assert "corrupt.pdf" in page.text
-        assert "duplicate" in page.text
+        assert page.text.lower().count("duplicate") >= 1
         # Summary and table are consistent: one row per upload, but the
         # duplicate created no additional document row.
         assert comps.db.count_documents() == documents_before + 2
@@ -209,7 +209,7 @@ class TestRunPageDuplicateDisplay:
         assert page.status_code == 200
         assert "a.pdf" in page.text
         assert "b.pdf" in page.text
-        assert page.text.count("duplicate") >= 2
+        assert page.text.lower().count("duplicate") >= 2
         # Dedup design unchanged: duplicates never create document rows.
         assert comps.db.count_documents() == documents_before
         # API contract unchanged: summary correct, and this run has no document

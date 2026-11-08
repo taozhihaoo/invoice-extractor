@@ -120,6 +120,8 @@ class Database:
         self.path = Path(path)
         self.path.parent.mkdir(parents=True, exist_ok=True)
         with self._conn() as conn:
+            # WAL keeps reads from blocking the writer while a batch is running.
+            conn.execute("PRAGMA journal_mode=WAL")
             conn.executescript(SCHEMA)
             # Databases created before uploads_json existed keep working.
             columns = {row[1] for row in conn.execute("PRAGMA table_info(processing_runs)")}
@@ -130,6 +132,8 @@ class Database:
     def _conn(self) -> Iterator[sqlite3.Connection]:
         conn = sqlite3.connect(self.path, timeout=30)
         conn.row_factory = sqlite3.Row
+        # Concurrent uploads share one file; wait instead of raising at once.
+        conn.execute("PRAGMA busy_timeout=30000")
         try:
             with conn:
                 yield conn
@@ -166,17 +170,28 @@ class Database:
         return dict(row) if row else None
 
     def find_document_by_sha256(self, sha256: str) -> dict[str, Any] | None:
+        """Return the most recent *usable* document holding these exact bytes.
+
+        Documents that failed (or never finished) are deliberately excluded:
+        re-uploading the same file after a transient failure must actually try
+        again instead of handing back the failed record forever.
+        """
         with self._conn() as conn:
             row = conn.execute(
-                "SELECT * FROM documents WHERE sha256 = ? ORDER BY created_at LIMIT 1",
+                """SELECT * FROM documents
+                   WHERE sha256 = ? AND status IN ('processed', 'needs_review')
+                   ORDER BY created_at DESC, rowid DESC LIMIT 1""",
                 (sha256,),
             ).fetchone()
         return dict(row) if row else None
 
     def list_documents(self, limit: int = 50, offset: int = 0) -> list[dict[str, Any]]:
         with self._conn() as conn:
+            # rowid keeps the order stable inside one batch, where several rows
+            # share the same second-precision created_at.
             rows = conn.execute(
-                "SELECT * FROM documents ORDER BY created_at DESC, id LIMIT ? OFFSET ?",
+                """SELECT * FROM documents
+                   ORDER BY created_at DESC, rowid DESC LIMIT ? OFFSET ?""",
                 (limit, offset),
             ).fetchall()
         return [dict(row) for row in rows]
@@ -263,7 +278,7 @@ class Database:
     def list_run_documents(self, run_id: str) -> list[dict[str, Any]]:
         with self._conn() as conn:
             rows = conn.execute(
-                "SELECT * FROM documents WHERE run_id = ? ORDER BY created_at, id",
+                "SELECT * FROM documents WHERE run_id = ? ORDER BY rowid",
                 (run_id,),
             ).fetchall()
         return [dict(row) for row in rows]
@@ -288,7 +303,7 @@ class Database:
         if run_id is not None:
             query += " WHERE d.run_id = ?"
             params = (run_id,)
-        query += " ORDER BY d.created_at, d.id"
+        query += " ORDER BY d.rowid"
         with self._conn() as conn:
             rows = conn.execute(query, params).fetchall()
         result = []

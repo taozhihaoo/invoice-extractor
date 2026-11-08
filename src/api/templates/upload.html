@@ -1,13 +1,115 @@
 {% extends "base.html" %}
+{% block title %}{{ t("upload.title") }} · {{ t("brand") }}{% endblock %}
 {% block content %}
-<h1>Upload documents</h1>
-<div class="card">
-  <form action="/upload" method="post" enctype="multipart/form-data">
-    <input type="file" name="files" accept=".pdf,application/pdf" multiple required>
-    <p class="muted">PDF only &middot; up to {{ max_upload_size_mb }} MB per file &middot;
-       up to {{ max_batch_files }} files per batch &middot;
-       duplicate files are detected automatically (SHA-256)</p>
-    <button type="submit">Process files</button>
-  </form>
+<div class="narrow">
+<div class="page-head">
+  <div>
+    <h1>{{ t("upload.title") }}</h1>
+    <p class="subtitle">{{ t("upload.subtitle") }}</p>
+  </div>
 </div>
+
+<div class="upload-shell">
+  <section class="card">
+    <form action="/upload" method="post" enctype="multipart/form-data" id="uploadForm">
+      <label class="dropzone" id="dropzone" for="files">
+        <span class="dz-icon" aria-hidden="true">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"
+               stroke-linecap="round" stroke-linejoin="round">
+            <path d="M12 16V4m0 0L7.5 8.5M12 4l4.5 4.5"/>
+            <path d="M4 15v3a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-3"/>
+          </svg>
+        </span>
+        <span class="dz-title">{{ t("upload.drop") }}</span>
+        <span class="dz-or">{{ t("upload.or") }}</span>
+        <span class="btn btn-ghost btn-sm">{{ t("upload.browse") }}</span>
+        <input id="files" type="file" name="files" accept=".pdf,application/pdf" multiple required>
+      </label>
+
+      <ul class="file-list" id="fileList" hidden></ul>
+      <p class="dz-hint" id="fileHint">{{ t("upload.empty") }}</p>
+
+      <div class="form-foot">
+        <ul class="notes">
+          <li>{{ t("upload.limits", size=max_upload_size_mb, count=max_batch_files) }}</li>
+          <li>{{ t("upload.dedup") }}</li>
+          <li>{{ t("upload.privacy") }}</li>
+        </ul>
+        <button class="btn btn-primary" type="submit" id="submitBtn">{{ t("upload.submit") }}</button>
+      </div>
+    </form>
+  </section>
+</div>
+</div>
+
+<script>
+(function () {
+  var input = document.getElementById("files");
+  var zone = document.getElementById("dropzone");
+  var list = document.getElementById("fileList");
+  var hint = document.getElementById("fileHint");
+  var form = document.getElementById("uploadForm");
+  var submitBtn = document.getElementById("submitBtn");
+  var selectedLabel = {{ t("upload.selected")|tojson }};
+  var emptyLabel = {{ t("upload.empty")|tojson }};
+
+  function kb(bytes) {
+    if (bytes < 1024) return bytes + " B";
+    if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(0) + " KB";
+    return (bytes / (1024 * 1024)).toFixed(1) + " MB";
+  }
+
+  function render() {
+    var files = Array.prototype.slice.call(input.files || []);
+    list.innerHTML = "";
+    if (!files.length) {
+      list.hidden = true;
+      hint.textContent = emptyLabel;
+      return;
+    }
+    files.forEach(function (file) {
+      var li = document.createElement("li");
+      var name = document.createElement("span");
+      name.textContent = file.name;
+      var size = document.createElement("span");
+      size.className = "size";
+      size.textContent = kb(file.size);
+      li.appendChild(name);
+      li.appendChild(size);
+      list.appendChild(li);
+    });
+    list.hidden = false;
+    hint.textContent = selectedLabel + ": " + files.length;
+  }
+
+  input.addEventListener("change", render);
+
+  ["dragenter", "dragover"].forEach(function (name) {
+    zone.addEventListener(name, function (event) {
+      event.preventDefault();
+      zone.classList.add("dragover");
+    });
+  });
+
+  ["dragleave", "drop"].forEach(function (name) {
+    zone.addEventListener(name, function (event) {
+      event.preventDefault();
+      zone.classList.remove("dragover");
+    });
+  });
+
+  zone.addEventListener("drop", function (event) {
+    if (!event.dataTransfer || !event.dataTransfer.files.length) return;
+    input.files = event.dataTransfer.files;
+    render();
+  });
+
+  form.addEventListener("submit", function () {
+    if (!input.files || !input.files.length) return;
+    submitBtn.disabled = true;
+    submitBtn.style.opacity = "0.7";
+    submitBtn.style.cursor = "progress";
+  });
+})();
+</script>
 {% endblock %}

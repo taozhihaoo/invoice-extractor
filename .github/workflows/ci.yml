@@ -4,9 +4,18 @@ on:
   push:
     branches: [main]
   pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   test:
+    name: Tests (Python ${{ matrix.python-version }})
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
@@ -21,6 +30,7 @@ jobs:
         with:
           python-version: ${{ matrix.python-version }}
           cache: pip
+          cache-dependency-path: requirements-dev.txt
 
       - name: Install dependencies
         run: |
@@ -35,3 +45,73 @@ jobs:
           # Guarantee no accidental network/LLM usage in CI.
           LLM_PROVIDER: mock
         run: pytest -v
+
+  package:
+    name: Package + demo smoke test
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+          cache: pip
+          cache-dependency-path: requirements-dev.txt
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements-dev.txt
+
+      - name: Install the project itself
+        run: pip install -e .
+
+      - name: Console script is on PATH
+        run: document-processor --version
+
+      - name: End-to-end demo (no API key, no network)
+        env:
+          LLM_PROVIDER: mock
+        run: python -m src.main --demo
+
+      - name: Demo produced exports
+        run: |
+          test -s output/invoice_report.csv
+          test -s output/invoice_report.json
+          head -n 1 output/invoice_report.csv
+
+  docker:
+    name: Docker image builds and serves
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build image
+        run: docker build -t ai-document-processor:ci .
+
+      - name: Run container
+        run: docker run -d --name app -p 8000:8000 -e LLM_PROVIDER=mock ai-document-processor:ci
+
+      - name: Wait for /health and smoke-test the UI
+        run: |
+          for attempt in $(seq 1 30); do
+            if curl -fsS http://127.0.0.1:8000/health > /tmp/health.json; then
+              break
+            fi
+            sleep 2
+          done
+          cat /tmp/health.json
+          grep -q '"status":"ok"' /tmp/health.json
+          curl -fsS http://127.0.0.1:8000/ | grep -q "AI Document Processor"
+          curl -fsS http://127.0.0.1:8000/static/app.css | grep -q -- "--accent"
+          curl -fsS http://127.0.0.1:8000/export/csv | head -n 1
+
+      - name: Container logs
+        if: failure()
+        run: docker logs app
+
+      - name: Clean up
+        if: always()
+        run: docker rm -f app || true

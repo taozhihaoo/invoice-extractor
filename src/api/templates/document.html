@@ -1,68 +1,240 @@
 {% extends "base.html" %}
-{% block title %}{{ document.original_filename }} · AI Document Processor{% endblock %}
+{% block title %}{{ document.original_filename }} · {{ t("brand") }}{% endblock %}
 {% block content %}
-<p class="muted"><a href="/">&larr; Dashboard</a></p>
-<h1 class="mono">{{ document.original_filename }}</h1>
+<p class="crumbs"><a href="/">← {{ t("common.back") }}</a></p>
+
+<div class="page-head">
+  <div>
+    <h1 class="mono" style="font-size:21px">{{ document.original_filename }}</h1>
+    <p class="subtitle">
+      {% if document.document_type %}{{ t("type." ~ document.document_type.value) }}{% endif %}
+      {% if document.page_count is not none %} · {{ document.page_count }}{{ t("doc.pages.one") if document.page_count == 1 else t("doc.pages.many") }}{% endif %}
+      {% if document.created_at %} · <span class="mono">{{ document.created_at|stamp }}</span>{% endif %}
+    </p>
+  </div>
+  {% if document.status.value != "failed" %}
+  <div class="actions">
+    <a class="btn btn-ghost btn-sm" href="/documents/{{ document.document_id }}/download">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+           stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <path d="M12 4v11m0 0 4-4m-4 4-4-4M5 19h14"/>
+      </svg>
+      {{ t("doc.download") }}
+    </a>
+  </div>
+  {% endif %}
+</div>
 
 {% if document.status.value == "failed" %}
-  <div class="banner fail">Processing failed &mdash; {{ document.error_message or "unknown error" }}</div>
+  <div class="banner fail">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+         stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+      <circle cx="12" cy="12" r="9"/><path d="M9.2 9.2l5.6 5.6M14.8 9.2l-5.6 5.6"/>
+    </svg>
+    <span class="banner-body">
+      {{ t("status.failed") }}
+      <span class="banner-sub">{{ document.error_message or "—" }}</span>
+    </span>
+  </div>
 {% elif document.status.value == "needs_review" %}
-  <div class="banner review">Needs manual review</div>
-  {% for reason in document.review_reasons %}
-    <div class="warning">{{ reason }}</div>
-  {% endfor %}
+  <div class="banner review">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+         stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+      <path d="M12 4.5 21 20H3z"/><path d="M12 10v4.2M12 17.2v.1"/>
+    </svg>
+    <span class="banner-body">
+      {{ t("status.needs_review") }}
+      <span class="banner-sub">{{ t("doc.review") }}: {{ document.review_reasons|length }}</span>
+    </span>
+  </div>
 {% else %}
-  <div class="banner ok">Processed</div>
+  <div class="banner ok">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+         stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+      <circle cx="12" cy="12" r="9"/><path d="M8.5 12.4l2.4 2.4 4.6-5"/>
+    </svg>
+    <span class="banner-body">{{ t("status.processed") }}</span>
+  </div>
 {% endif %}
 
-{% if document.extraction %}
-<div class="card">
-  <h2>Extracted invoice fields</h2>
-  <dl>
-    <dt>Supplier</dt><dd>{{ document.extraction.invoice.supplier or "—" }}</dd>
-    <dt>Invoice number</dt><dd>{{ document.extraction.invoice.invoice_number or "—" }}</dd>
-    <dt>Invoice date</dt><dd>{{ document.extraction.invoice.invoice_date or "—" }}</dd>
-    <dt>Due date</dt><dd>{{ document.extraction.invoice.due_date or "—" }}</dd>
-    <dt>Subtotal</dt><dd>{{ document.extraction.invoice.subtotal|money }}</dd>
-    <dt>Tax</dt><dd>{{ document.extraction.invoice.tax|money }}</dd>
-    <dt>Total</dt><dd><strong>{{ document.extraction.invoice.total|money }}</strong>
-        {{ document.extraction.invoice.currency or "" }}</dd>
-  </dl>
-  {% if document.extraction.validation.warnings %}
-    <h2 style="margin-top:16px">Validation warnings</h2>
-    {% for w in document.extraction.validation.warnings %}
-      <div class="warning">{{ w }}</div>
-    {% endfor %}
-  {% else %}
-    <p class="muted" style="margin-top:12px">Deterministic validation passed.</p>
-  {% endif %}
-  <p class="muted" style="margin-top:12px">LLM provider: {{ document.extraction.llm_provider }}
-     &middot; model: {{ document.extraction.llm_model or "n/a" }} &middot;
-     tokens: {{ document.extraction.usage.prompt_tokens }} prompt +
-     {{ document.extraction.usage.completion_tokens }} completion</p>
+{% if document.duplicate %}
+<div class="banner info">
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"
+       stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+    <rect x="8" y="8" width="12" height="12" rx="2"/>
+    <path d="M16 8V6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h2"/>
+  </svg>
+  <span class="banner-body">{{ t("doc.duplicate_of", id=document.duplicate_of[:12] ~ "…") }}</span>
 </div>
 {% endif %}
 
-<div class="card">
-  <h2>Document</h2>
-  <dl>
-    <dt>Status</dt><dd><span class="badge {{ document.status.value }}">{{ document.status.value }}</span>
-      {% if document.duplicate %}<span class="badge neutral">duplicate of {{ document.duplicate_of[:12] }}&hellip;</span>{% endif %}</dd>
-    <dt>Document type</dt>
-    <dd>{{ document.document_type.value if document.document_type else "—" }}
-      {% if document.classification %}<span class="muted">({{ document.classification.method }},
-        confidence {{ document.classification.confidence }})</span>{% endif %}</dd>
-    <dt>Pages</dt><dd>{{ document.page_count if document.page_count is not none else "—" }}</dd>
-    <dt>Extraction method</dt><dd>{{ document.extraction_method.value if document.extraction_method else "—" }}</dd>
-    <dt>Text length</dt><dd>{{ document.text_length if document.text_length is not none else "—" }}</dd>
-    <dt>File size</dt><dd>{{ document.file_size }} bytes</dd>
-    <dt>SHA-256</dt><dd class="mono">{{ document.sha256[:24] }}&hellip;</dd>
-    <dt>Uploaded</dt><dd>{{ document.created_at or "—" }} UTC</dd>
-  </dl>
-  {% if document.status.value != "failed" %}
-  <p style="margin-top:12px">
-    <a href="/documents/{{ document.document_id }}/download">Download original PDF</a>
-  </p>
-  {% endif %}
+{% if document.review_reasons and document.status.value != "processed" %}
+  <ul class="reasons">
+    {% for reason in document.review_reasons %}
+    <li>{{ reason }}</li>
+    {% endfor %}
+  </ul>
+  <div style="height:18px"></div>
+{% endif %}
+
+<div class="grid-2">
+  <div class="stack">
+    <section class="card">
+      <div class="card-head">
+        <h2>{{ t("doc.fields") }}</h2>
+        {% if document.extraction %}
+        <span class="hint">{{ document.extraction.llm_provider }}
+          {%- if document.extraction.llm_model %} · {{ document.extraction.llm_model }}{% endif %}</span>
+        {% endif %}
+      </div>
+
+      {% if document.extraction %}
+      {% set inv = document.extraction.invoice %}
+      <dl class="kv">
+        <div class="kv-item">
+          <dt>{{ t("doc.supplier") }}</dt>
+          <dd{% if not inv.supplier %} class="empty"{% endif %}>{{ inv.supplier or "—" }}</dd>
+        </div>
+        <div class="kv-item">
+          <dt>{{ t("doc.invoice_number") }}</dt>
+          <dd class="mono"{% if not inv.invoice_number %} style="color:#b6bfd0"{% endif %}>{{ inv.invoice_number or "—" }}</dd>
+        </div>
+        <div class="kv-item">
+          <dt>{{ t("doc.invoice_date") }}</dt>
+          <dd{% if not inv.invoice_date %} class="empty"{% endif %}>{{ inv.invoice_date or "—" }}</dd>
+        </div>
+        <div class="kv-item">
+          <dt>{{ t("doc.due_date") }}</dt>
+          <dd{% if not inv.due_date %} class="empty"{% endif %}>{{ inv.due_date or "—" }}</dd>
+        </div>
+        <div class="kv-item">
+          <dt>{{ t("doc.subtotal") }}</dt>
+          <dd class="amount{% if inv.subtotal is none %} empty{% endif %}">{{ inv.subtotal|money if inv.subtotal is not none else "—" }}</dd>
+        </div>
+        <div class="kv-item">
+          <dt>{{ t("doc.tax") }}</dt>
+          <dd class="amount{% if inv.tax is none %} empty{% endif %}">{{ inv.tax|money if inv.tax is not none else "—" }}</dd>
+        </div>
+      </dl>
+
+      <div class="total-strip">
+        <span class="label">{{ t("doc.total") }}</span>
+        <span class="value">
+          {% if inv.total is not none %}{{ inv.total|money }}{% else %}—{% endif %}
+          {% if inv.currency %}<em>{{ inv.currency }}</em>{% endif %}
+        </span>
+      </div>
+      {% else %}
+      <div class="empty">
+        <span class="empty-icon" aria-hidden="true">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"
+               stroke-linecap="round" stroke-linejoin="round">
+            <path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5"/>
+          </svg>
+        </span>
+        <strong>{{ t("doc.no_fields") }}</strong>
+      </div>
+      {% endif %}
+    </section>
+
+    {% if document.extraction %}
+    <section class="card">
+      <div class="card-head">
+        <h2>{{ t("doc.validation") }}</h2>
+        {% if document.extraction.validation.passed %}
+        <span class="pill processed">{{ t("status.processed") }}</span>
+        {% else %}
+        <span class="pill needs_review">{{ t("doc.validation.warn") }}</span>
+        {% endif %}
+      </div>
+
+      {% if document.extraction.validation.warnings %}
+        <ul class="reasons">
+          {% for warning in document.extraction.validation.warnings %}
+          <li>{{ warning }}</li>
+          {% endfor %}
+        </ul>
+      {% else %}
+        <p style="margin:0;font-size:13.4px;color:var(--ok)">
+          {{ t("doc.validation.passed") }}
+        </p>
+      {% endif %}
+      <p class="section-note">{{ t("doc.validation.scope") }}</p>
+    </section>
+    {% endif %}
+  </div>
+
+  <div class="stack">
+    <section class="card">
+      <div class="card-head"><h2>{{ t("doc.meta") }}</h2></div>
+      <dl class="def-list">
+        <div>
+          <dt>{{ t("table.status") }}</dt>
+          <dd><span class="pill {{ document.status.value }}">{{ t("status." ~ document.status.value) }}</span></dd>
+        </div>
+        <div>
+          <dt>{{ t("doc.type") }}</dt>
+          <dd>
+            {% if document.document_type %}{{ t("type." ~ document.document_type.value) }}{% else %}—{% endif %}
+            {% if document.classification %}
+            <div class="row-meta">
+              {{ t("doc.classification", method=document.classification.method, confidence=document.classification.confidence) }}
+            </div>
+            {% endif %}
+          </dd>
+        </div>
+        <div>
+          <dt>{{ t("doc.pages") }}</dt>
+          <dd>{{ document.page_count if document.page_count is not none else "—" }}</dd>
+        </div>
+        <div>
+          <dt>{{ t("doc.method") }}</dt>
+          <dd>
+            {% if document.extraction_method %}{{ t("method." ~ document.extraction_method.value) }}{% else %}—{% endif %}
+          </dd>
+        </div>
+        <div>
+          <dt>{{ t("doc.text_length") }}</dt>
+          <dd>{% if document.text_length is not none %}{{ t("doc.text_length.value", count=document.text_length) }}{% else %}—{% endif %}</dd>
+        </div>
+        <div>
+          <dt>{{ t("doc.file_size") }}</dt>
+          <dd>{{ document.file_size|filesize }}</dd>
+        </div>
+        <div>
+          <dt>{{ t("doc.sha") }}</dt>
+          <dd class="mono" title="{{ document.sha256 }}">{{ document.sha256[:20] }}…</dd>
+        </div>
+        <div>
+          <dt>{{ t("doc.uploaded") }}</dt>
+          <dd class="mono">{{ document.created_at|stamp }}</dd>
+        </div>
+      </dl>
+    </section>
+
+    {% if document.extraction %}
+    <section class="card">
+      <div class="card-head"><h2>{{ t("doc.provenance") }}</h2></div>
+      <dl class="def-list">
+        <div>
+          <dt>{{ t("doc.provider") }}</dt>
+          <dd class="mono">{{ document.extraction.llm_provider }}</dd>
+        </div>
+        <div>
+          <dt>{{ t("doc.model") }}</dt>
+          <dd class="mono">{{ document.extraction.llm_model or "—" }}</dd>
+        </div>
+        <div>
+          <dt>{{ t("doc.tokens") }}</dt>
+          <dd class="mono">
+            {{ t("doc.tokens.value",
+                 prompt=document.extraction.usage.prompt_tokens,
+                 completion=document.extraction.usage.completion_tokens) }}
+          </dd>
+        </div>
+      </dl>
+    </section>
+    {% endif %}
+  </div>
 </div>
 {% endblock %}

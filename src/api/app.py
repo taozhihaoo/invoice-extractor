@@ -15,6 +15,7 @@ from pathlib import Path
 from fastapi import FastAPI, File, HTTPException, Query, Request, Response, UploadFile
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import FileResponse, JSONResponse
+from fastapi.staticfiles import StaticFiles
 from starlette.concurrency import run_in_threadpool
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
@@ -28,10 +29,19 @@ from ..models import BatchResult, DocumentResult, RunDetail
 from ..processing import UploadInput
 from ..processing.service import document_result_from_rows
 from ..upload_validator import validate_upload
+from .i18n import (
+    COOKIE_MAX_AGE,
+    LANGUAGE_COOKIE,
+    SUPPORTED_LANGUAGES,
+    resolve_language,
+)
 from .schemas import DocumentListResponse, HealthResponse
 from .ui import router as ui_router
+from .uploads import read_upload_limited
 
 logger = logging.getLogger("document_processor")
+
+STATIC_DIR = Path(__file__).parent / "static"
 
 
 def _error_body(code: str, message: str) -> dict:
@@ -52,6 +62,24 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         ),
     )
     app.state.components = components
+    app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
+
+    # -- language -----------------------------------------------------------
+
+    @app.middleware("http")
+    async def language_middleware(request: Request, call_next):
+        """Resolve the UI language once per request and remember the choice."""
+        request.state.lang = resolve_language(request)
+        response = await call_next(request)
+        if request.query_params.get(LANGUAGE_COOKIE) in SUPPORTED_LANGUAGES:
+            response.set_cookie(
+                LANGUAGE_COOKIE,
+                request.state.lang,
+                max_age=COOKIE_MAX_AGE,
+                samesite="lax",
+                httponly=True,
+            )
+        return response
 
     # -- error handling -----------------------------------------------------
 
@@ -114,7 +142,11 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     async def upload_document(
         response: Response, file: UploadFile = File(...)
     ) -> DocumentResult:
-        data = await file.read()
+        # Read with a hard cap so an oversized upload is rejected before it is
+        # fully buffered in memory.
+        data = await read_upload_limited(
+            file, max_size_bytes=components.settings.max_upload_size_bytes
+        )
         # HTTP-level validation first: invalid single uploads are rejected with
         # 4xx and never create a document record (batch runs record everything).
         validate_upload(
@@ -147,7 +179,9 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             )
         inputs: list[UploadInput] = []
         for upload_file in files:
-            data = await upload_file.read()
+            data = await read_upload_limited(
+                upload_file, max_size_bytes=components.settings.max_upload_size_bytes
+            )
             inputs.append(
                 UploadInput(
                     filename=upload_file.filename,

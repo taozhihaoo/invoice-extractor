@@ -8,6 +8,7 @@ shows exactly what arrived and why it was rejected.
 
 from __future__ import annotations
 
+import logging
 import uuid
 from collections.abc import Sequence
 from dataclasses import dataclass
@@ -22,6 +23,8 @@ from ..upload_validator import sanitise_filename
 if TYPE_CHECKING:
     from ..database import Database
     from .service import DocumentProcessor
+
+logger = logging.getLogger("document_processor")
 
 
 @dataclass(frozen=True)
@@ -81,7 +84,17 @@ class BatchProcessor:
                     run_id=run_id,
                 )
             except UploadError as exc:
-                result = self._record_rejected(run_id, upload, exc.code, exc.message)
+                result = self._record_rejected_safely(run_id, upload, exc.code, exc.message)
+            except Exception:
+                # Defence in depth: even an unforeseen crash on one file is
+                # reported as that file's failure instead of failing the batch.
+                logger.exception("unexpected failure while processing an upload")
+                result = self._record_rejected_safely(
+                    run_id,
+                    upload,
+                    "processing_error",
+                    "unexpected error while processing this file",
+                )
             results.append(result)
 
         failed = sum(1 for r in results if r.status is DocumentStatus.FAILED)
@@ -107,6 +120,28 @@ class BatchProcessor:
             uploads=manifest,
         )
         return results
+
+    def _record_rejected_safely(
+        self, run_id: str, upload: UploadInput, code: str, message: str
+    ) -> DocumentResult:
+        """Persist the rejection; never let persistence itself break the batch."""
+        try:
+            return self._record_rejected(run_id, upload, code, message)
+        except Exception:
+            logger.exception("could not persist rejected upload")
+            now = utc_now()
+            return DocumentResult(
+                document_id=uuid.uuid4().hex,
+                original_filename=sanitise_filename(upload.filename),
+                status=DocumentStatus.FAILED,
+                file_size=len(upload.data),
+                sha256=sha256_hex(upload.data),
+                content_type=upload.content_type,
+                error_message=f"{code}: {message}",
+                run_id=run_id,
+                created_at=now,
+                updated_at=now,
+            )
 
     def _record_rejected(
         self, run_id: str, upload: UploadInput, code: str, message: str

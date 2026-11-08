@@ -46,6 +46,13 @@ def sanitise_filename(name: str | None) -> str:
     return name or "upload.pdf"
 
 
+def size_limit_message(max_size_bytes: int) -> str:
+    return (
+        "file exceeds the maximum allowed size of "
+        f"{max_size_bytes // (1024 * 1024)} MB"
+    )
+
+
 def validate_upload(
     *,
     filename: str | None,
@@ -58,9 +65,7 @@ def validate_upload(
     if not data:
         raise EmptyFileError("uploaded file is empty")
     if len(data) > max_size_bytes:
-        raise FileTooLargeError(
-            f"file exceeds the maximum allowed size of {max_size_bytes // (1024 * 1024)} MB"
-        )
+        raise FileTooLargeError(size_limit_message(max_size_bytes))
     if not original.lower().endswith(".pdf"):
         raise UnsupportedFileTypeError("only .pdf files are supported")
 

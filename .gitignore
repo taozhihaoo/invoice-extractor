@@ -23,3 +23,6 @@ dist/
 .ruff_cache/
 .coverage
 htmlcov/
+
+# Local agent/editor state (never part of the project)
+.workbuddy/

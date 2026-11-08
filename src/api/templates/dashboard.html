@@ -1,61 +1,197 @@
 {% extends "base.html" %}
 {% block content %}
-<h1>Dashboard</h1>
-
-<div class="card">
-  <table>
-    <tr>
-      <td><div class="stat">{{ total_documents }}</div><div class="muted">documents</div></td>
-      <td><div class="stat">{{ counts.get("processed", 0) }}</div><div class="muted">processed</div></td>
-      <td><div class="stat">{{ counts.get("needs_review", 0) }}</div><div class="muted">needs review</div></td>
-      <td><div class="stat">{{ counts.get("failed", 0) }}</div><div class="muted">failed</div></td>
-    </tr>
-  </table>
-  <p class="muted">LLM provider: {{ llm_provider }} &middot;
-     OCR available: {{ "yes" if ocr_available else "no (install Tesseract for scanned PDFs)" }}</p>
+<div class="page-head">
+  <div>
+    <h1>{{ t("dash.title") }}</h1>
+    <p class="subtitle">{{ t("dash.subtitle") }}</p>
+  </div>
+  <div class="actions">
+    <a class="btn btn-primary" href="/upload">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+           stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <path d="M12 5v14M5 12h14"/>
+      </svg>
+      {{ t("dash.action.upload") }}
+    </a>
+  </div>
 </div>
 
-<div class="card">
-  <h2>Recent documents</h2>
+<section class="stats">
+  <div class="stat-card">
+    <div class="stat-top">
+      <span class="stat-label">{{ t("dash.stat.documents") }}</span>
+      <span class="stat-icon icon-indigo" aria-hidden="true">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"
+             stroke-linecap="round" stroke-linejoin="round">
+          <path d="M8 3h8l4 4v10a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2z"/>
+          <path d="M16 3v4h4M10 12h6M10 16h4"/>
+        </svg>
+      </span>
+    </div>
+    <div class="stat-value">{{ total_documents }}</div>
+    <div class="stat-hint">{{ t("dash.stat.documents.hint") }}</div>
+  </div>
+
+  <div class="stat-card">
+    <div class="stat-top">
+      <span class="stat-label">{{ t("dash.stat.processed") }}</span>
+      <span class="stat-icon icon-green" aria-hidden="true">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+             stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="12" cy="12" r="9"/><path d="M8.5 12.4l2.4 2.4 4.6-5"/>
+        </svg>
+      </span>
+    </div>
+    <div class="stat-value">{{ counts.get("processed", 0) }}</div>
+    <div class="stat-hint">{{ t("dash.stat.processed.hint") }}</div>
+  </div>
+
+  <div class="stat-card">
+    <div class="stat-top">
+      <span class="stat-label">{{ t("dash.stat.review") }}</span>
+      <span class="stat-icon icon-amber" aria-hidden="true">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"
+             stroke-linecap="round" stroke-linejoin="round">
+          <path d="M12 4.5 21 20H3z"/><path d="M12 10v4.2M12 17.2v.1"/>
+        </svg>
+      </span>
+    </div>
+    <div class="stat-value">{{ counts.get("needs_review", 0) }}</div>
+    <div class="stat-hint">{{ t("dash.stat.review.hint") }}</div>
+  </div>
+
+  <div class="stat-card">
+    <div class="stat-top">
+      <span class="stat-label">{{ t("dash.stat.failed") }}</span>
+      <span class="stat-icon icon-red" aria-hidden="true">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"
+             stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="12" cy="12" r="9"/><path d="M9.2 9.2l5.6 5.6M14.8 9.2l-5.6 5.6"/>
+        </svg>
+      </span>
+    </div>
+    <div class="stat-value">{{ counts.get("failed", 0) }}</div>
+    <div class="stat-hint">{{ t("dash.stat.failed.hint") }}</div>
+  </div>
+</section>
+
+<div class="engine-bar">
+  <span class="engine-label">{{ t("dash.engine") }}</span>
+  <span class="engine-item">
+    <span class="dot {{ 'dot-ok' if llm_provider != 'mock' else 'dot-muted' }}"></span>
+    {{ t("dash.engine.llm") }} <code>{{ llm_provider }}</code>
+  </span>
+  <span class="engine-sep"></span>
+  <span class="engine-item">
+    <span class="dot {{ 'dot-ok' if ocr_available else 'dot-muted' }}"></span>
+    {{ t("dash.engine.ocr") }}
+    <code>{{ t("dash.engine.ocr.available") if ocr_available else t("dash.engine.ocr.missing") }}</code>
+  </span>
+</div>
+
+<section class="card">
+  <div class="card-head">
+    <h2>{{ t("dash.recent_docs") }}</h2>
+    {% if documents %}<span class="hint">{{ documents|length }} {{ t("common.documents") }}</span>{% endif %}
+  </div>
+
   {% if documents %}
-  <table>
-    <tr><th>File</th><th>Type</th><th>Total</th><th>Status</th><th>Uploaded (UTC)</th></tr>
-    {% for d in documents %}
-    <tr>
-      <td><a href="/documents/{{ d.document_id }}/view" class="mono">{{ d.original_filename }}</a></td>
-      <td>{{ d.document_type.value if d.document_type else "—" }}</td>
-      <td>{% if d.extraction and d.extraction.invoice.total is not none %}
-            {{ d.extraction.invoice.total|money }} {{ d.extraction.invoice.currency or "" }}
-          {% else %}&mdash;{% endif %}</td>
-      <td><span class="badge {{ d.status.value }}">{{ d.status.value }}</span>
-          {% if d.duplicate %}<span class="badge neutral">duplicate</span>{% endif %}</td>
-      <td class="muted">{{ d.created_at or "" }}</td>
-    </tr>
-    {% endfor %}
-  </table>
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th>{{ t("table.file") }}</th>
+          <th>{{ t("table.type") }}</th>
+          <th class="num">{{ t("table.amount") }}</th>
+          <th>{{ t("table.status") }}</th>
+          <th>{{ t("table.uploaded") }}</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for d in documents %}
+        <tr>
+          <td>
+            <div class="file-cell">
+              <span class="file-icon" aria-hidden="true">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"
+                     stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/>
+                  <path d="M14 3v5h5"/>
+                </svg>
+              </span>
+              <a class="file-name" href="/documents/{{ d.document_id }}/view"
+                 title="{{ d.original_filename }}">{{ d.original_filename }}</a>
+            </div>
+          </td>
+          <td class="type-tag">{% if d.document_type %}{{ t("type." ~ d.document_type.value) }}{% else %}—{% endif %}</td>
+          <td class="num">{% if d.extraction and d.extraction.invoice.total is not none %}{{ d.extraction.invoice.total|money }}{% if d.extraction.invoice.currency %} <span class="muted">{{ d.extraction.invoice.currency }}</span>{% endif %}{% else %}—{% endif %}</td>
+          <td>
+            <span class="pill {{ d.status.value }}">{{ t("status." ~ d.status.value) }}</span>
+            {% if d.duplicate %}<span class="pill duplicate">{{ t("status.duplicate") }}</span>{% endif %}
+          </td>
+          <td class="muted nowrap">{{ d.created_at|stamp }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
   {% else %}
-  <p class="muted">No documents yet. <a href="/upload">Upload some PDFs</a> to get started.</p>
+  <div class="empty">
+    <span class="empty-icon" aria-hidden="true">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"
+           stroke-linecap="round" stroke-linejoin="round">
+        <path d="M3 7.5A2 2 0 0 1 5 5.5h3.2l1.8 2h9A2 2 0 0 1 21 9.5v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>
+      </svg>
+    </span>
+    <strong>{{ t("dash.empty.docs") }}</strong>
+    <span>{{ t("dash.empty.docs.hint") }}</span>
+  </div>
   {% endif %}
-</div>
+</section>
 
-<div class="card">
-  <h2>Recent runs</h2>
+<section class="card">
+  <div class="card-head">
+    <h2>{{ t("dash.recent_runs") }}</h2>
+  </div>
+
   {% if runs %}
-  <table>
-    <tr><th>Run</th><th>Started (UTC)</th><th>Total</th><th>Succeeded</th><th>Failed</th><th>Needs review</th></tr>
-    {% for r in runs %}
-    <tr>
-      <td><a href="/runs/{{ r.run_id }}/view" class="mono">{{ r.run_id[:12] }}&hellip;</a></td>
-      <td class="muted">{{ r.started_at }}</td>
-      <td>{{ r.total }}</td>
-      <td>{{ r.success }}</td>
-      <td>{{ r.failed }}</td>
-      <td>{{ r.needs_review }}</td>
-    </tr>
-    {% endfor %}
-  </table>
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th>{{ t("table.run") }}</th>
+          <th>{{ t("table.started") }}</th>
+          <th class="num">{{ t("table.files") }}</th>
+          <th class="num">{{ t("table.succeeded") }}</th>
+          <th class="num">{{ t("table.review") }}</th>
+          <th class="num">{{ t("table.failed") }}</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for r in runs %}
+        <tr>
+          <td><a class="mono" href="/runs/{{ r.run_id }}/view">{{ r.run_id[:12] }}…</a></td>
+          <td class="muted nowrap">{{ r.started_at|stamp }}</td>
+          <td class="num">{{ r.total }}</td>
+          <td class="num">{{ r.success }}</td>
+          <td class="num">{{ r.needs_review }}</td>
+          <td class="num">{{ r.failed }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
   {% else %}
-  <p class="muted">No runs yet.</p>
+  <div class="empty">
+    <span class="empty-icon" aria-hidden="true">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"
+           stroke-linecap="round" stroke-linejoin="round">
+        <rect x="3.5" y="4.5" width="17" height="15" rx="2.5"/><path d="M3.5 9.5h17M8 4.5v5"/>
+      </svg>
+    </span>
+    <strong>{{ t("dash.empty.runs") }}</strong>
+    <span>{{ t("dash.empty.runs.hint") }}</span>
+  </div>
   {% endif %}
-</div>
+</section>
 {% endblock %}

@@ -1,6 +1,9 @@
 """REST API tests: /health, POST/GET /documents, download, safe errors."""
 
+from fastapi.testclient import TestClient
 
+from src.api.app import create_app
+from src.database import Database
 from tests.conftest import (
     CORRUPTED_PDF_BYTES,
     SAMPLE_INVOICE_TEXT,
@@ -152,3 +155,18 @@ class TestSafeErrors:
         response = client.post("/documents")  # missing file part
         assert response.status_code == 422
         assert response.json()["error"]["code"] == "validation_error"
+
+
+class TestUploadSizeCap:
+    def test_oversized_upload_is_rejected_before_processing(self, tmp_path):
+        """The body is read with a cap, so an oversized upload never reaches
+        the pipeline and never creates a document record."""
+        settings = make_settings(tmp_path, max_upload_size_mb=1)
+        with TestClient(create_app(settings), raise_server_exceptions=False) as client:
+            payload = b"%PDF-1.4\n" + b"0" * (1024 * 1024 + 4096)
+            response = client.post(
+                "/documents", files={"file": ("big.pdf", payload, "application/pdf")}
+            )
+        assert response.status_code == 413
+        assert response.json()["error"]["code"] == "file_too_large"
+        assert Database(settings.database_path).count_documents() == 0

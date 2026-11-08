@@ -57,14 +57,37 @@ class TestDocuments:
         assert db.get_document("nope") is None
 
     def test_find_by_sha256(self, db):
-        db.insert_document(make_document(sha256="deadbeef"))
+        db.insert_document(make_document(sha256="deadbeef", status="processed"))
         assert db.find_document_by_sha256("deadbeef")["id"] == "doc-1"
         assert db.find_document_by_sha256("missing") is None
+
+    def test_find_by_sha256_ignores_unusable_rows(self, db):
+        """Same bytes after a failure must be re-processable, not "duplicate"."""
+        db.insert_document(make_document(id="failed", sha256="retry", status="failed"))
+        assert db.find_document_by_sha256("retry") is None
+
+        db.insert_document(make_document(id="running", sha256="retry", status="processing"))
+        assert db.find_document_by_sha256("retry") is None
+
+        db.insert_document(make_document(id="done", sha256="retry", status="needs_review"))
+        assert db.find_document_by_sha256("retry")["id"] == "done"
 
     def test_parameterised_values_with_quotes(self, db):
         db.insert_document(make_document())
         row = db.get_document("doc-1")
         assert "'" in row["original_filename"]  # stored intact, no escaping bugs
+
+    def test_listing_order_is_stable_within_one_batch(self, db):
+        """Rows in one batch share a second-precision timestamp, so ordering
+        must fall back to insertion order instead of the random uuid."""
+        db.create_run("run-1", "2026-09-30T10:00:00+00:00")
+        for name in ("a", "b", "c"):
+            db.insert_document(
+                make_document(id=name, status="processed", run_id="run-1")
+            )
+        assert [row["id"] for row in db.list_run_documents("run-1")] == ["a", "b", "c"]
+        assert [row["id"] for row in db.list_documents()] == ["c", "b", "a"]
+        assert [row["document_id"] for row in db.export_rows("run-1")] == ["a", "b", "c"]
 
     def test_update_document_whitelist(self, db):
         db.insert_document(make_document())
